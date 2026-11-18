@@ -135,13 +135,6 @@ const appointments = require("./routes/appointments");
 
 dotenv.config({ path: "./config/config.env" });
 
-if (process.env.MONGO_URI) {
-  connectDB().catch((error) => {
-    console.error(`Database connection failed: ${error.message}`);
-    process.exit(1);
-  });
-}
-
 const app = express();
 
 app.use(helmet());
@@ -229,18 +222,41 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, () => {
-  console.log(`Car Service Appointment API running on http://localhost:${PORT}`);
-});
+
+let server;
+
+const startServer = async () => {
+  try {
+    // Connect to MongoDB first
+    await connectDB();
+
+    // Start Express only after successful connection
+    server = app.listen(PORT, () => {
+      console.log(
+        `Car Service Appointment API running on http://localhost:${PORT}`
+      );
+    });
+  } catch (error) {
+    console.error("Database connection failed:", error.message);
+    process.exit(1);
+  }
+};
+
+startServer();
 
 process.on("unhandledRejection", (error) => {
-  console.error(`Unhandled rejection: ${error.message}`);
-  server.close(() => process.exit(1));
+  console.error("Unhandled rejection:", error.message);
+
+  if (server) {
+    server.close(() => process.exit(1));
+  } else {
+    process.exit(1);
+  }
 });
 
 process.on("uncaughtException", (error) => {
-  console.error(`Uncaught exception: ${error.message}`);
+  console.error("Uncaught exception:", error.message);
   process.exit(1);
 });
 
-module.exports = { app, server };
+module.exports = { app };
